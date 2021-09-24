@@ -17,27 +17,29 @@ def convolve(tensor, kernel, stride=1, padding=0):
     depth, arows, acols = tensor.shape
     _, krows, kcols = kernel.shape
 
-    print(f'tensor shape: {tensor.shape}\nkernel shape: {kernel.shape}\n')
-        
+            
     pad = 2 * padding
     src = np.zeros(shape=(depth, arows + pad, acols + pad))
     _, rows, cols = src.shape
-    print(src.shape)
     src[:, padding : -padding, padding : -padding] = tensor
-    print(src)
 
-    if __debug__:
-        print(f'src: \n{src}')
-   
     dst = np.zeros(shape=(
-        int(((arows - krows + padding) / stride)) + 1, 
-        int(((acols - kcols + padding) / stride)) + 1
+        int(((arows - krows + pad) / stride)) + 1, 
+        int(((acols - kcols + pad) / stride)) + 1
     ))
 
-    if __debug__:
-        print(f'dst size: {dst.shape}')
+    # Note: Have to check for oddities in the output size versus stride
+    if dst.shape[2] <= src.shape[2] // stride:
+        # insert rows and columns in middle
+    
+    print(f'tensor shape: {tensor.shape}\nkernel shape: {kernel.shape}\n')
 
-    print(f'{rows}-{cols} :: {krows}-{kcols}')
+    if __debug__:
+        print(f'src:\n{src}')
+        print(f'kernel:\n{kernel}')
+        print(f'dst size: {dst.shape}')
+        print(f'{rows}-{cols} :: {krows}-{kcols}')
+
     for row in range(0, rows - krows, stride):
         for col in range(0, cols - kcols, stride):
             for d in range(0, depth):
@@ -45,6 +47,10 @@ def convolve(tensor, kernel, stride=1, padding=0):
                     kkrow = krow + row
                     for kcol in range(0, kcols):
                         for kd in range(0, depth):
+                            if __debug__:
+                                print(f'{row}x{col} = {kkrow}x{col+kcol} + \
+                                      {krow}x{kcol}')
+
                             dst[row][col] += src[d][kkrow][col + kcol] * \
                                 kernel[d][krow][kcol]
     return dst
