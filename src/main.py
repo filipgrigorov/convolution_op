@@ -1,4 +1,5 @@
 import numpy as np
+import time
 
 np.set_printoptions(precision=2, suppress=True)
 
@@ -10,10 +11,10 @@ def Conv2d(tensor, nkernels, ksize, stride=1, padding=0):
 
     feature_maps = []
     for kernel in kernels:
-        feature_maps.append(convolve(tensor, kernel, stride, padding))
+        feature_maps.append(convolve_2d(tensor, kernel, stride, padding))
     return np.stack(feature_maps)
 
-def convolve(tensor, kernel, stride=1, padding=0):
+def convolve_2d(tensor, kernel, stride=1, padding=0):
     depth, arows, acols = tensor.shape
     _, krows, kcols = kernel.shape
 
@@ -23,36 +24,40 @@ def convolve(tensor, kernel, stride=1, padding=0):
     _, rows, cols = src.shape
     src[:, padding : -padding, padding : -padding] = tensor
 
-    dst = np.zeros(shape=(
-        int(((arows - krows + pad) / stride)) + 1, 
-        int(((acols - kcols + pad) / stride)) + 1
-    ))
+    out_w = ((arows - krows + pad) / stride)
+    out_h = ((acols - kcols + pad) / stride)
+    if __debug__:
+        print(f'\nOUT: {out_w}x{out_h}\n')
 
-    # Note: Have to check for oddities in the output size versus stride
-    if dst.shape[2] <= src.shape[2] // stride:
-        # insert rows and columns in middle
+    dst = np.zeros(shape=(
+        int(np.ceil(out_w)) + 1, 
+        int(np.ceil(out_h)) + 1
+    ))
     
-    print(f'tensor shape: {tensor.shape}\nkernel shape: {kernel.shape}\n')
+    if __debug__:
+        print(f'tensor shape: {tensor.shape}\nkernel shape: {kernel.shape}\n')
 
     if __debug__:
         print(f'src:\n{src}')
         print(f'kernel:\n{kernel}')
         print(f'dst size: {dst.shape}')
-        print(f'{rows}-{cols} :: {krows}-{kcols}')
 
-    for row in range(0, rows - krows, stride):
-        for col in range(0, cols - kcols, stride):
-            for d in range(0, depth):
-                for krow in range(0, krows):
+    for row in np.arange(0, rows - krows, stride):
+        for col in np.arange(0, cols - kcols, stride):
+            for d in np.arange(0, depth):
+                for krow in np.arange(0, krows):
                     kkrow = krow + row
-                    for kcol in range(0, kcols):
-                        for kd in range(0, depth):
+                    for kcol in np.arange(0, kcols):
+                        for kd in np.arange(0, depth):
                             if __debug__:
-                                print(f'{row}x{col} = {kkrow}x{col+kcol} + \
-                                      {krow}x{kcol}')
+                                print(f'{row}x{col} = {kkrow}x{col+kcol} + {krow}x{kcol}')
 
-                            dst[row][col] += src[d][kkrow][col + kcol] * \
-                                kernel[d][krow][kcol]
+                            dst[row][col] += src[d][kkrow][col + kcol] * kernel[d][krow][kcol]
+
+    if out_w % 2 != 0 or out_h % 2 != 0:
+        if __debug__:
+            print('*** ODD ***')
+        return np.delete(np.delete(dst, dst.shape[0] // 2, axis=0), dst.shape[1] // 2, axis=1)
     return dst
 
 if __name__ == '__main__':
@@ -66,6 +71,12 @@ if __name__ == '__main__':
 
     print(f'tensor: \n{tensor}\n')
 
+    time_pnt = time.time()
+
     feature_map = Conv2d(tensor, nkernels=1, ksize=2, stride=2, padding=1)
+
+    print(f'elapsed: {round((time.time() - time_pnt) * 1e3, 4)}us')
+
+    print(feature_map.shape)
     print(feature_map)
 
